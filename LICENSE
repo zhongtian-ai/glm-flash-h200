@@ -1,0 +1,3 @@
+Files under overlay/ are derived from SGLang (https://github.com/sgl-project/sglang) and are licensed under the
+Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0). The launcher, check script and
+documentation in this repository are released under the same license.
