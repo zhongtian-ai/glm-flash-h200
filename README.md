@@ -6,7 +6,13 @@ Prebuilt image (public):
 docker pull ghcr.io/zhongtian-ai/glm-flash-sglang:h200-20261106
 ```
 
-It is the official SGLang nightly image `lmsysorg/sglang:nightly-dev-20261106-858073e4`
+Or build the identical image yourself from public parts only (no login needed):
+
+```bash
+docker build -t ghcr.io/zhongtian-ai/glm-flash-sglang:h200-20261106 https://github.com/zhongtian-ai/glm-flash-h200.git#main
+```
+
+The image is the official SGLang nightly image `lmsysorg/sglang:nightly-dev-20261106-858073e4`
 (pinned by digest `sha256:034f4c61…`) plus three things: a small patch overlay (35 source files), the
 production chat template, and a launcher with two measured recipes. The [`Dockerfile`](Dockerfile) rebuilds the
 same image from public parts. Weights are **not** in the image: download `zai-org/GLM-5.3-Flash` (FP8, ~328 GB).
