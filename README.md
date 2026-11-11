@@ -92,7 +92,9 @@ With the earlier image tag `h200-20261106` (whose launcher has neither `p1` nor 
 `-e TIER=f1 -e HICACHE=0` plus, after `launch.sh`:
 `--moe-a2a-backend megamoe --speculative-moe-a2a-backend none --speculative-moe-runner-backend triton --speculative-use-block-verification`.
 
-To replay this load against any OpenAI-compatible endpoint (yours or ours), see [`loadgen/`](loadgen):
+To replay this load against any OpenAI-compatible endpoint (yours or ours), see [`loadgen/`](loadgen) — its [README](loadgen/README.md)
+(中文) explains the load shape, the three cache states, the metrics, and the three-way comparison (official SGLang recipe vs. this
+image vs. our production cluster); `loadgen/run_bench.sh` runs the whole thing and prints one table:
 
 ```bash
 pip install aiohttp && gunzip -k loadgen/corpus.jsonl.gz

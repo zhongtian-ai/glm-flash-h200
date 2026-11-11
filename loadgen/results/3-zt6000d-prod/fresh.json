@@ -1,0 +1,49 @@
+{
+ "scope": "fresh@c5",
+ "wall_s": 404.7,
+ "temperature": null,
+ "thinking": false,
+ "requests": {
+  "total": 777,
+  "completed": 777,
+  "failed": 0,
+  "error_rate": 0.0
+ },
+ "tokens": {
+  "input_total": 4242764,
+  "output_total": 162751,
+  "cached_total": 608576,
+  "avg_input_per_request": 5460,
+  "avg_output_per_request": 209,
+  "cached_frac": 0.1434,
+  "hit_length_cap_frac": 0.871
+ },
+ "throughput": {
+  "requests_per_s": 1.92,
+  "input_tokens_per_s": 10484.64,
+  "output_tokens_per_s": 402.19
+ },
+ "latency_ms": {
+  "ttft": {
+   "p50": 891.16,
+   "p95": 2434.11,
+   "p99": 3358.66
+  },
+  "tpot": {
+   "p50": 5.81,
+   "p95": 19.48,
+   "p99": 46.58
+  },
+  "itl": {
+   "p50": 14.48,
+   "p95": 24.52,
+   "p99": 167.78
+  },
+  "e2e": {
+   "p50": 1887.95,
+   "p95": 6556.02,
+   "p99": 11087.52
+  }
+ },
+ "errors": []
+}

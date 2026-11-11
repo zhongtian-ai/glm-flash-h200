@@ -30,6 +30,7 @@ def body_for(r):
         msgs[i]['content'] = f'[req {uuid.uuid4().hex}]\n' + msgs[i]['content']
     b = {'model': A.model, 'messages': msgs, 'max_tokens': r['max_tokens'], 'max_completion_tokens': r['max_tokens'],
          'stream': True, 'stream_options': {'include_usage': True}, 'chat_template_kwargs': {'enable_thinking': bool(A.thinking)}}
+    if os.environ.get('NO_TEMPLATE_KWARGS'): b.pop('chat_template_kwargs')   # servers that refuse the thinking switch
     if r.get('tools'): b['tools'] = r['tools']
     if A.temperature is not None: b['temperature'] = A.temperature
     return b
@@ -58,7 +59,7 @@ async def one(sess, r):
 async def run(duration, record, passes=None):
     cur = {'i': 0}; res = []; tend = time.perf_counter() + duration if duration else None
     async def worker():
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=900), headers={'User-Agent': 'zt-replay/1.0'}) as sess:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=900), headers={'User-Agent': 'zt-replay/1.0', **({'Authorization': 'Bearer ' + os.environ['API_KEY']} if os.environ.get('API_KEY') else {})}) as sess:
             while True:
                 i = cur['i']; cur['i'] += 1
                 if (tend and time.perf_counter() >= tend) or (passes and i >= passes * len(rows)): return
