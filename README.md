@@ -42,6 +42,20 @@ OpenAI-compatible API on port 30000 (`/v1/chat/completions`), model name `zai-or
 | `f1` (default) | up to ~64 concurrent long sessions | MTP speculative decoding 3/1/4, FP8 sparse prefill, host-RAM KV tier (HiCache ×2), mem fraction 0.80, runtime optimizations on | agent benchmark, 64 sessions: 2,500 output tok/s, warm first token p50 0.75 s (2,224 tok/s with `MOE=split`) |
 | `f2` | ~128 concurrent long sessions | f1 + FP8 KV cache (2× capacity) + running cap 96 | agent benchmark, 128 sessions: 2,480–2,499 output tok/s, warm first token p50 2.3 s (2,086 tok/s with `MOE=split`) |
 | `p1` | a handful of concurrent requests, prompts of a few thousand tokens | f1 without the host-RAM KV tier (no 1.2 TB RAM requirement) | 5 in flight, 5.4K in / 160 out: 605–846 output tok/s depending on cache hits; see the next section |
+| `a1` | **coding agents**, up to 64 concurrent sessions with long, mostly cached prompts | p1 + running cap 64 (SGLang's automatic cap is 48 with MTP on) + 16K-token prefill chunks | [coding-agent-serving-bench](https://github.com/zhongtian-ai/coding-agent-serving-bench), 16 / 32 / 64 agents: 1,779 / 2,563 / 3,390 output tok/s, first token p50 126 / 141 / 172 ms (p1: 1,780 / 2,532 / 2,946 tok/s, 1,676 ms at 64) |
+
+**Added 2026-11-11 (`TIER=a1`):** tuned on the coding-agent workload of
+[coding-agent-serving-bench](https://github.com/zhongtian-ai/coding-agent-serving-bench) (19K-token median prompt, 93%
+served from the prefix cache, closed-loop agents). Of eight configurations measured, the one large change is the
+running-request cap: with speculative decoding on, SGLang limits the server to 48 running requests, so at 64 agents a
+quarter of them wait in the queue (first token 1.7 s). `a1` raises the cap to 64: at 64 agents +15% output tokens/s,
+first token p50 1.7 s → 0.17 s, end-to-end p50 5.1 → 3.9 s (per-token time 15.3 → 17.4 ms, since 64 instead of 48
+requests now decode together); unchanged at 16 and 32. Did not help here (vs cap 64 alone): the host-RAM KV tier
+(−4–5%, the KV fits in GPU memory), FP8 KV + cap 96 (`f2`, −5–10%), 2 speculative steps instead of 3 (−5–8%), 4 steps
+(within noise). All runs with per-request data:
+[results/2026-11-11-h200-tuning](https://github.com/zhongtian-ai/coding-agent-serving-bench/tree/main/results/2026-11-11-h200-tuning).
+Launcher-only change: on an older image the same thing is `TIER=p1` plus
+`--max-running-requests 64 --cuda-graph-max-bs-decode 64 --chunked-prefill-size 16384` after `launch.sh`.
 
 **Changed 2026-11-10 (`MOE=mega`, now the default in every tier):** the expert layers of the main model run as one fused
 kernel (`--moe-a2a-backend megamoe`), the MTP draft head stays on the lighter Triton path, and block verification is on.
