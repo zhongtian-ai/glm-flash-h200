@@ -3,6 +3,8 @@
 #   TIER=f1  (default) <=64 concurrent long agent sessions   (2,500 out tok/s @64 sessions; 2,224 with MOE=split)
 #   TIER=f2            ~128 concurrent long sessions, FP8 KV  (2,480 out tok/s @128 sessions; 2,087 with MOE=split)
 #   TIER=p1            a few concurrent requests, ~5K-token prompts, short answers: f1 without the host-RAM KV tier
+#   TIER=a1            coding agents, up to 64 concurrent sessions (19K-token median prompts, mostly cached):
+#                      p1 + running cap 64 + 16K prefill chunks  (3,355 out tok/s @64, first token p50 0.17 s)
 # Env: MODEL=/model  PORT=30000  TP=8  SERVED_NAME=zai-org/GLM-5.3-Flash
 #      MOE=mega|split  mega (default since 2026-11-10): fused MoE kernel for the main model, draft head on the light
 #                      Triton path, block verification. split = the 2026-11-06 behaviour (separate dispatch / GEMM / combine).
@@ -31,7 +33,12 @@ case "$TIER" in
   f1) T=(--dsa-prefill-backend flashmla_sparse_q8 --kv-cache-dtype bfloat16) ;;
   f2) T=(--dsa-prefill-backend tilelang --kv-cache-dtype fp8_e4m3 --max-running-requests 96 --cuda-graph-max-bs-decode 96) ;;
   p1) T=(--dsa-prefill-backend flashmla_sparse_q8 --kv-cache-dtype bfloat16); [ "$HICACHE" = auto ] && HICACHE=0 ;;
-  *) echo "unknown TIER=$TIER (f1|f2|p1)" >&2; exit 2 ;;
+  # a1: with MTP on, SGLang caps running requests at 48 by itself, so agent #49..64 wait in the queue (TTFT 1.7 s at 64).
+  #     Raising the cap to 64 (and capturing decode CUDA graphs up to 64) removes that wait; KV fits in GPU memory, so no
+  #     host-RAM tier (it cost 4-5% here). Larger prefill chunks help slightly when many sessions append at once.
+  a1) T=(--dsa-prefill-backend flashmla_sparse_q8 --kv-cache-dtype bfloat16 --max-running-requests 64
+         --cuda-graph-max-bs-decode 64 --chunked-prefill-size 16384); [ "$HICACHE" = auto ] && HICACHE=0 ;;
+  *) echo "unknown TIER=$TIER (f1|f2|p1|a1)" >&2; exit 2 ;;
 esac
 [ "$HICACHE" = auto ] && HICACHE=1
 [ "$HICACHE" = 1 ] || HIC=()
