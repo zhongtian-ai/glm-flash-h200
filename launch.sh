@@ -35,11 +35,21 @@ case "$TIER" in
   p1) T=(--dsa-prefill-backend flashmla_sparse_q8 --kv-cache-dtype bfloat16); [ "$HICACHE" = auto ] && HICACHE=0 ;;
   # a1: with MTP on, SGLang caps running requests at 48 by itself, so agent #49..64 wait in the queue (TTFT 1.7 s at 64).
   #     Raising the cap to 64 (and capturing decode CUDA graphs up to 64) removes that wait; KV fits in GPU memory, so no
-  #     host-RAM tier (it cost 4-5% here). Larger prefill chunks help slightly when many sessions append at once.
+  #     host-RAM tier (it cost 4-5% here).
+  #     Prefill chunks stay at 8192 tokens with MOE=mega: MegaMoE silently returns wrong results when one forward pass
+  #     carries more than 8192 tokens (prompts >=10K tokens answered garbage at 16384; fixed 2026-11-12, see README).
   a1) T=(--dsa-prefill-backend flashmla_sparse_q8 --kv-cache-dtype bfloat16 --max-running-requests 64
-         --cuda-graph-max-bs-decode 64 --chunked-prefill-size 16384); [ "$HICACHE" = auto ] && HICACHE=0 ;;
+         --cuda-graph-max-bs-decode 64 --chunked-prefill-size 8192); [ "$HICACHE" = auto ] && HICACHE=0 ;;
   *) echo "unknown TIER=$TIER (f1|f2|p1|a1)" >&2; exit 2 ;;
 esac
+# Guard for extra args: MegaMoE + prefill chunks above 8192 tokens gives wrong answers on long prompts.
+if [ "$MOE" = mega ]; then
+  for ((i=1; i<=$#; i++)); do
+    if [ "${!i}" = --chunked-prefill-size ]; then j=$((i+1))
+      [ "${!j:-0}" -gt 8192 ] && { echo "refusing --chunked-prefill-size ${!j} with MOE=mega (wrong outputs above 8192); use <=8192 or MOE=split" >&2; exit 2; }
+    fi
+  done
+fi
 [ "$HICACHE" = auto ] && HICACHE=1
 [ "$HICACHE" = 1 ] || HIC=()
 set -x
