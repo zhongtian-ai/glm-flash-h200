@@ -42,7 +42,7 @@ OpenAI-compatible API on port 30000 (`/v1/chat/completions`), model name `zai-or
 | `f1` (default) | up to ~64 concurrent long sessions | MTP speculative decoding 3/1/4, FP8 sparse prefill, host-RAM KV tier (HiCache ×2), mem fraction 0.80, runtime optimizations on | agent benchmark, 64 sessions: 2,500 output tok/s, warm first token p50 0.75 s (2,224 tok/s with `MOE=split`) |
 | `f2` | ~128 concurrent long sessions | f1 + FP8 KV cache (2× capacity) + running cap 96 | agent benchmark, 128 sessions: 2,480–2,499 output tok/s, warm first token p50 2.3 s (2,086 tok/s with `MOE=split`) |
 | `p1` | a handful of concurrent requests, prompts of a few thousand tokens | f1 without the host-RAM KV tier (no 1.2 TB RAM requirement) | 5 in flight, 5.4K in / 160 out: 605–846 output tok/s depending on cache hits; see the next section |
-| `a1` | **coding agents**, up to 64 concurrent sessions with long, mostly cached prompts | p1 + running cap 64 (SGLang's automatic cap is 48 with MTP on) + 16K-token prefill chunks | [coding-agent-serving-bench](https://github.com/zhongtian-ai/coding-agent-serving-bench), 16 / 32 / 64 agents: 1,779 / 2,563 / 3,390 output tok/s, first token p50 126 / 141 / 172 ms (p1: 1,780 / 2,532 / 2,946 tok/s, 1,676 ms at 64) |
+| `a1` | **coding agents**, up to 64 concurrent sessions with long, mostly cached prompts | p1 + running cap 64 (SGLang's automatic cap is 48 with MTP on); prefill chunks 8192 (see the 2026-11-12 fix below) | [coding-agent-serving-bench](https://github.com/zhongtian-ai/coding-agent-serving-bench), 16 / 32 / 64 agents: 1,779 / 2,563 / 3,390 output tok/s, first token p50 126 / 141 / 172 ms (p1: 1,780 / 2,532 / 2,946 tok/s, 1,676 ms at 64) |
 
 **Added 2026-11-11 (`TIER=a1`):** tuned on the coding-agent workload of
 [coding-agent-serving-bench](https://github.com/zhongtian-ai/coding-agent-serving-bench) (19K-token median prompt, 93%
@@ -55,7 +55,17 @@ requests now decode together); unchanged at 16 and 32. Did not help here (vs cap
 (within noise). All runs with per-request data:
 [results/2026-11-11-h200-tuning](https://github.com/zhongtian-ai/coding-agent-serving-bench/tree/main/results/2026-11-11-h200-tuning).
 Launcher-only change: on an older image the same thing is `TIER=p1` plus
-`--max-running-requests 64 --cuda-graph-max-bs-decode 64 --chunked-prefill-size 16384` after `launch.sh`.
+`--max-running-requests 64 --cuda-graph-max-bs-decode 64 --chunked-prefill-size 8192` after `launch.sh`.
+
+**Fixed 2026-11-12 (`TIER=a1` prefill chunks 16384 → 8192):** with `MOE=mega`, any forward pass carrying more than 8192
+tokens returns wrong outputs, silently. Every prompt of ~10K tokens or more that was not served from the cache came back
+wrong: a retrieval question over a 10K–56K-token document got the document echoed, `0`, or `0.0.0.0…`, while the
+official recipe answered correctly. Short prompts (GSM8K, canaries) were unaffected, which is why the a1 tuning runs did
+not catch it. Bisected on 8x L20X: prefill kernel `tilelang` instead of `flashmla_sparse_q8` → still wrong; chunks 8192 → correct;
+`MOE=split` with 16384 → correct. With 8192, long-context retrieval is 8/8 (official 8/8), GSM8K 95.8% (official 95.8%), and the
+coding-agent test at 64 agents gives 3,154 output tok/s vs 2,888 for `MOE=split` + 16384 on the same L20X node.
+`launch.sh` now refuses `--chunked-prefill-size` above 8192 with `MOE=mega`. The H200 numbers in the table above were measured
+with 16384 and have not been re-measured yet.
 
 **Changed 2026-11-10 (`MOE=mega`, now the default in every tier):** the expert layers of the main model run as one fused
 kernel (`--moe-a2a-backend megamoe`), the MTP draft head stays on the lighter Triton path, and block verification is on.
