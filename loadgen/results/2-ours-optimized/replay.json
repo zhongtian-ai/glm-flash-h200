@@ -1,0 +1,49 @@
+{
+ "scope": "replay@c5/warm",
+ "wall_s": 403.1,
+ "temperature": null,
+ "thinking": false,
+ "requests": {
+  "total": 2080,
+  "completed": 2080,
+  "failed": 0,
+  "error_rate": 0.0
+ },
+ "tokens": {
+  "input_total": 11310633,
+  "output_total": 339271,
+  "cached_total": 10988288,
+  "avg_input_per_request": 5438,
+  "avg_output_per_request": 163,
+  "cached_frac": 0.9715,
+  "hit_length_cap_frac": 0.588
+ },
+ "throughput": {
+  "requests_per_s": 5.16,
+  "input_tokens_per_s": 28055.85,
+  "output_tokens_per_s": 841.56
+ },
+ "latency_ms": {
+  "ttft": {
+   "p50": 67.5,
+   "p95": 126.27,
+   "p99": 230.14
+  },
+  "tpot": {
+   "p50": 5.32,
+   "p95": 7.21,
+   "p99": 9.19
+  },
+  "itl": {
+   "p50": 14.78,
+   "p95": 28.8,
+   "p99": 31.71
+  },
+  "e2e": {
+   "p50": 598.65,
+   "p95": 2904.69,
+   "p99": 8492.49
+  }
+ },
+ "errors": []
+}
